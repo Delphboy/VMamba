@@ -22,10 +22,14 @@ mamba activate ssm
 
 python3 -m pip install fvcore
 
-python3 vmamba.py --model_name "vanilla_vmamba_tiny" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
-python3 vmamba.py --model_name "vanilla_vmamba_small" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
-python3 vmamba.py --model_name "vanilla_vmamba_base" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
+python3 vmamba.py --model_name "vanilla_vmamba_tiny" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches" --coco_img_root "/data/PublicDataSets/Coco-2014/"
+python3 vmamba.py --model_name "vanilla_vmamba_small" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches" --coco_img_root "/data/PublicDataSets/Coco-2014/"
 
-python3 vmamba.py --model_name "vmamba_base_s1l20" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
-python3 vmamba.py --model_name "vmamba_base_s2l15" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
+python3 vmamba.py --model_name "vanilla_vmamba_base" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches" --coco_img_root "/data/PublicDataSets/Coco-2014/"
+
+
+python3 vmamba.py --model_name "vmamba_base_s1l20" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches" --coco_img_root "/data/PublicDataSets/Coco-2014/"
+
+python3 vmamba.py --model_name "vmamba_base_s2l15" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches" --coco_img_root "/data/PublicDataSets/Coco-2014/"
+
 

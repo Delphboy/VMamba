@@ -2461,13 +2461,13 @@ def do_throughput(name="vmamba_tiny_s1l8", data="/media/memfs/ImageNet_ILSVRC201
     model = create_model(name, pretrained=True)
     throughput(data_loader_val, model)
 
-def do_process(name="vmamba_tiny_s1l8", data="/media/memfs/ImageNet_ILSVRC2012/val", split="train", save_dir=""):
+def do_process(name="vmamba_tiny_s1l8", data="/media/memfs/ImageNet_ILSVRC2012/val", split="train", save_dir="", coco_img_root="img/"):
     from timm import create_model
     if True:
         torch.backends.cudnn.enabled = True
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.deterministic = True
-    data_loader_val = get_coco_dataloader(batch_size=8, root=data, num_workers=4, split=split)
+    data_loader_val = get_coco_dataloader(batch_size=8, root=data, num_workers=4, split=split, coco_img_root=coco_img_root)
     model = create_model(name, pretrained=True)
     process(data_loader_val, model, name, save_dir)
 
@@ -2491,7 +2491,7 @@ def process(data_loader, model, model_name, save_dir):
         for x, id in zip(save_data, cocoids):
             np.savez_compressed(os.path.join(save_dir, f"{id}.npz"), feat=x)
 
-def get_coco_dataloader(batch_size=64, root="./val", img_size=224, sequential=True, num_workers=0, split="train"):
+def get_coco_dataloader(batch_size=64, root="./val", img_size=224, sequential=True, num_workers=0, split="train", coco_img_root="img/"):
     from custom_dataset import CaptioningDataset
     from torchvision import transforms
     img_size = 224
@@ -2504,7 +2504,7 @@ def get_coco_dataloader(batch_size=64, root="./val", img_size=224, sequential=Tr
         transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
     ])
 
-    dataset= CaptioningDataset(os.path.join(root, "img/"), os.path.join(root, "dataset_coco.json"), transform, split)
+    dataset= CaptioningDataset(coco_img_root, os.path.join(root, "dataset_coco.json"), transform, split)
     data_loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
@@ -2520,6 +2520,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, required=True)
     parser.add_argument("--coco_root", type=str, required=True)
+    parser.add_argument("--coco_img_root", type=str, required=True)
     parser.add_argument("--save_root", type=str, required=True)
 
     args = parser.parse_args()
@@ -2535,9 +2536,9 @@ if __name__ == "__main__":
     
 
     # do_throughput("vanilla_vmamba_base", data="/home/henry/Datasets/coco/")
-    do_process(args.model_name, data=args.coco_root, split="train", save_dir=args.save_root)
-    do_process(args.model_name, data=args.coco_root, split="val", save_dir=args.save_root)
-    do_process(args.model_name, data=args.coco_root, split="test", save_dir=args.save_root)
+    do_process(args.model_name, data=args.coco_root, split="train", save_dir=args.save_root, coco_img_root=args.coco_img_root)
+    do_process(args.model_name, data=args.coco_root, split="val", save_dir=args.save_root, coco_img_root=args.coco_img_root)
+    do_process(args.model_name, data=args.coco_root, split="test", save_dir=args.save_root, coco_img_root=args.coco_im_root)
 
     # do_throughput("vanilla_vmamba_small")
     # do_throughput("vanilla_vmamba_base")
