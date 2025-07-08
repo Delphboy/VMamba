@@ -4,7 +4,7 @@
 #$ -pe smp 8
 #$ -l gpu=1
 #$ -l gpu_type=ampere
-#$ -wd /data/home/eey362/code/vmamba/
+#$ -wd /data/home/eey362/code/VMamba/
 #$ -j y
 #$ -m ea
 #$ -o logs/
@@ -20,7 +20,7 @@ ml load cuda
 # Activate virtual environment
 mamba activate ssm
 
-python3 -m pip install timm
+python3 -m pip install fvcore
 
 python3 vmamba.py --model_name "vanilla_vmamba_tiny" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
 python3 vmamba.py --model_name "vanilla_vmamba_small" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
