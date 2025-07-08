@@ -1,0 +1,31 @@
+#!/bin/bash
+#$ -l h_rt=6:00:00
+#$ -l h_vmem=11G
+#$ -pe smp 8
+#$ -l gpu=1
+#$ -l gpu_type=ampere
+#$ -wd /data/home/eey362/code/vmamba/
+#$ -j y
+#$ -m ea
+#$ -o logs/
+#$ -l cluster=andrena
+#$ -l rocky
+
+# Load modules
+module purge
+
+ml load miniforge
+ml load cuda
+
+# Activate virtual environment
+mamba activate ssm
+
+python3 -m pip install timm
+
+python3 vmamba.py --model_name "vanilla_vmamba_tiny" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
+python3 vmamba.py --model_name "vanilla_vmamba_small" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
+python3 vmamba.py --model_name "vanilla_vmamba_base" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
+
+python3 vmamba.py --model_name "vmamba_base_s1l20" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
+python3 vmamba.py --model_name "vmamba_base_s2l15" --coco_root "/data/EECS-YuanLab/COCO" --save_root "/data/scratch/eey362/vmamba_patches"
+

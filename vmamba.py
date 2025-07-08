@@ -20,6 +20,9 @@
 import torch
 import warnings
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 WITH_TRITON = True
 # WITH_TRITON = False
 try:
@@ -2413,24 +2416,27 @@ def validate(data_loader, model, amp_enable=True, print_freq=100000):
     return acc1_meter.avg, acc5_meter.avg, loss_meter.avg
 
 
+def run_without_classifier(model, x: torch.Tensor):
+    x = model.patch_embed(x)
+    if model.pos_embed is not None:
+        pos_embed = model.pos_embed.permute(0, 2, 3, 1) if not model.channel_first else model.pos_embed
+        x = x + pos_embed
+    for layer in model.layers:
+        x = layer(x)
+    return x
+
+
 @torch.no_grad()
 def throughput(data_loader, model):
     model.cuda()
     model.eval()
-    for idx, (images, _) in enumerate(data_loader):
+    for idx, (images, cocoids) in enumerate(data_loader):
+        print(f"{idx}/{len(data_loader)}")
         images = images.cuda(non_blocking=True)
         batch_size = images.shape[0]
-        for i in range(50):
-            model(images)
-        torch.cuda.synchronize()
-        print(f"throughput averaged with 30 times")
-        tic1 = time.time()
-        for i in range(30):
-            model(images)
-        torch.cuda.synchronize()
-        tic2 = time.time()
-        print(f"batch_size {batch_size} throughput {30 * batch_size / (tic2 - tic1)}")
-        return
+        output = run_without_classifier(model, images)
+        output = output.reshape(batch_size, -1, model.dims[-1])
+        print(output.shape)
 
 
 def do_validate(name="vmamba_tiny_s1l8", data="/media/memfs/ImageNet_ILSVRC2012/val"):
@@ -2451,12 +2457,72 @@ def do_throughput(name="vmamba_tiny_s1l8", data="/media/memfs/ImageNet_ILSVRC201
         torch.backends.cudnn.enabled = True
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.deterministic = True
-    data_loader_val = get_val_loader(batch_size=128, root=data, num_workers=4)
+    data_loader_val = get_coco_dataloader(batch_size=8, root=data, num_workers=4, split="val")
     model = create_model(name, pretrained=True)
     throughput(data_loader_val, model)
 
+def do_process(name="vmamba_tiny_s1l8", data="/media/memfs/ImageNet_ILSVRC2012/val", split="train", save_dir=""):
+    from timm import create_model
+    if True:
+        torch.backends.cudnn.enabled = True
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = True
+    data_loader_val = get_coco_dataloader(batch_size=8, root=data, num_workers=4, split=split)
+    model = create_model(name, pretrained=True)
+    process(data_loader_val, model, name, save_dir)
 
+import numpy as np
+@torch.no_grad()
+def process(data_loader, model, model_name, save_dir):
+    model.cuda()
+    model.eval()
+
+    save_dir = os.path.join(save_dir, model_name)
+    os.makedirs(save_dir, exist_ok=True)
+
+    for idx, (images, cocoids) in enumerate(data_loader):
+        logging.info(f"{model_name} - {idx+1}/{len(data_loader)}")
+        images = images.cuda(non_blocking=True)
+        batch_size = images.shape[0]
+        output = run_without_classifier(model, images)
+        output = output.reshape(batch_size, -1, model.dims[-1])
+
+        save_data = output.cpu().numpy()
+        for x, id in zip(save_data, cocoids):
+            np.savez_compressed(os.path.join(save_dir, f"{id}.npz"), feat=x)
+
+def get_coco_dataloader(batch_size=64, root="./val", img_size=224, sequential=True, num_workers=0, split="train"):
+    from custom_dataset import CaptioningDataset
+    from torchvision import transforms
+    img_size = 224
+    size = int((256 / 224) * img_size)
+    from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+    transform = transforms.Compose([
+        transforms.Resize(size, interpolation=transforms.InterpolationMode.BICUBIC),
+        transforms.CenterCrop((img_size, img_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
+    ])
+
+    dataset= CaptioningDataset(os.path.join(root, "img/"), os.path.join(root, "dataset_coco.json"), transform, split)
+    data_loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=False
+    )
+    return data_loader
+
+import argparse
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--coco_root", type=str, required=True)
+    parser.add_argument("--save_root", type=str, required=True)
+
+    args = parser.parse_args()
     # do_validate("vanilla_vmamba_tiny") # 82.17106973558698 96.03223806724185 0.7879069638634182
     # do_validate("vanilla_vmamba_small") # 83.4609923402307 96.47021178881855 0.7160880894021359
     # do_validate("vanilla_vmamba_base") # 83.72897626157689 96.62420254754197 0.6968230148378597
@@ -2468,15 +2534,20 @@ if __name__ == "__main__":
     # do_validate("vmamba_base_s1l20") # 83.79097254317328 96.61420314781112 0.7243299191111033
     
 
-    # do_throughput("vanilla_vmamba_tiny")
+    # do_throughput("vanilla_vmamba_base", data="/home/henry/Datasets/coco/")
+    do_process(args.model_name, data=args.coco_root, split="train", save_dir=args.save_root)
+    do_process(args.model_name, data=args.coco_root, split="val", save_dir=args.save_root)
+    do_process(args.model_name, data=args.coco_root, split="test", save_dir=args.save_root)
+
     # do_throughput("vanilla_vmamba_small")
     # do_throughput("vanilla_vmamba_base")
     # do_throughput("vmamba_tiny_s2l5")
     # do_throughput("vmamba_small_s2l15")
     # do_throughput("vmamba_base_s2l15")
-    do_throughput("vmamba_tiny_s1l8")
+    # do_throughput("vmamba_tiny_s1l8") # default
     # do_throughput("vmamba_small_s1l20")
     # do_throughput("vmamba_base_s1l20")
+
     
 
 
